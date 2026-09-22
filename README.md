@@ -1,2 +1,2 @@
 # gnc-peerlearn
-A Web-Based Peer-to-Peer Academic Assistance and Subject-Help Portal for Guagua National Colleges
+A Web-Based Student Peer-Tutoring and Subject-Help Portal for Guagua National College
