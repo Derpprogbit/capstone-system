@@ -5,3 +5,4 @@ A Web-Based Student Peer-Tutoring and Subject-Help Portal for Guagua National Co
 - Angelo Clarence Arce - (STATUS) CONNECTED TO REPOSITORY 
 - Aidan Jayvee Bartolo - (STATUS) CONNECTED TO REPOSITORY
 - Aries Bautista - (STATUS) CONNECTED TO REPOSITORY
+- Samantha Nicole Espeleta
