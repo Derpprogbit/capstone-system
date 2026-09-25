@@ -4,4 +4,3 @@ A Web-Based Student Peer-Tutoring and Subject-Help Portal for Guagua National Co
 -Luigi Cocjin
 - Angelo Clarence Arce - (STATUS) CONNECTED TO REPOSITORY 
 - Aidan Jayvee Bartolo - (STATUS) CONNECTED TO REPOSITORY
-#HEHEHEHEHEH
