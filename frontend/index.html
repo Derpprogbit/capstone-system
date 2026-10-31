@@ -1,0 +1,504 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#126238">
+    <title>GNC PeerLearn | Student Discussion Platform</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+    <!-- AUTHENTICATION SCREEN -->
+    <section id="authScreen" class="auth-screen">
+        <div class="auth-background"></div>
+
+        <header class="auth-header">
+            <a class="brand" href="#" data-action="show-login">
+                <span class="brand-mark">P</span>
+                <span>Peer<span class="brand-green">Learn</span></span>
+            </a>
+            <img src="./gnc logo.jpg" alt="Guagua National Colleges Logo"
+                 class="gnc-logo" onerror="this.style.display='none'">
+        </header>
+
+        <div class="auth-layout">
+            <div class="auth-intro">
+                <span class="eyebrow">GUAGUA NATIONAL COLLEGES</span>
+                <h1>Share Ideas.<br><span>Learn Together.</span></h1>
+                <p>
+                    A student discussion platform for sharing academic
+                    knowledge, asking questions, and learning from fellow
+                    BSIT students.
+                </p>
+                <div class="intro-points">
+                    <div><span class="point-mark"></span> Academic discussions</div>
+                    <div><span class="point-mark"></span> Knowledge sharing</div>
+                    <div><span class="point-mark"></span> Student collaboration</div>
+                </div>
+            </div>
+
+            <div class="auth-card">
+                <!-- LOGIN -->
+                <form id="loginForm" class="auth-form">
+                    <span class="form-kicker">WELCOME TO PEERLEARN</span>
+                    <h2>Log in to your account</h2>
+                    <p class="form-description">
+                        Enter your Learner Reference Number and password.
+                    </p>
+
+                    <label for="loginLrn">Learner Reference Number (LRN)</label>
+                    <input id="loginLrn" name="lrn" type="text"
+                           inputmode="numeric" maxlength="30"
+                           placeholder="Enter your LRN" required>
+
+                    <label for="loginPassword">Password</label>
+                    <input id="loginPassword" name="password" type="password"
+                           placeholder="Enter your password" required>
+
+                    <div class="form-row right">
+                        <button type="button" class="text-button"
+                                data-action="show-forgot">Forgot password?</button>
+                    </div>
+
+                    <button class="button button-primary full-width" type="submit">
+                        Log In
+                    </button>
+
+                    <p class="form-switch">
+                        Don't have an account?
+                        <button type="button" class="text-button"
+                                data-action="show-register">Create account</button>
+                    </p>
+                </form>
+
+                <!-- REGISTER -->
+                <form id="registerForm" class="auth-form hidden">
+                    <span class="form-kicker">JOIN THE COMMUNITY</span>
+                    <h2>Create your account</h2>
+                    <p class="form-description">
+                        Use your student details to register.
+                    </p>
+
+                    <label for="registerLrn">Learner Reference Number (LRN)</label>
+                    <input id="registerLrn" type="text" maxlength="30"
+                           placeholder="Enter your LRN" required>
+
+                    <label for="registerName">Full name</label>
+                    <input id="registerName" type="text" maxlength="100"
+                           placeholder="Enter your full name" required>
+
+                    <label for="registerCourse">Course / Program</label>
+                    <select id="registerCourse" required>
+                        <option value="">Select your course</option>
+                        <option value="BSIT">BS Information Technology (BSIT)</option>
+                        <option value="BSCS">BS Computer Science (BSCS)</option>
+                        <option value="BSBA">BS Business Administration (BSBA)</option>
+                        <option value="BSED">Bachelor of Secondary Education (BSED)</option>
+                        <option value="BEED">Bachelor of Elementary Education (BEED)</option>
+                        <option value="BSHM">BS Hospitality Management (BSHM)</option>
+                        <option value="Other">Other</option>
+                    </select>
+
+                    <label for="registerPassword">Password</label>
+                    <input id="registerPassword" type="password" minlength="6"
+                           placeholder="At least 6 characters" required>
+
+                    <label for="registerConfirm">Confirm password</label>
+                    <input id="registerConfirm" type="password" minlength="6"
+                           placeholder="Re-enter your password" required>
+
+                    <button class="button button-primary full-width" type="submit">
+                        Create Account
+                    </button>
+
+                    <p class="form-switch">
+                        Already registered?
+                        <button type="button" class="text-button"
+                                data-action="show-login">Log in</button>
+                    </p>
+                </form>
+
+                <!-- FORGOT PASSWORD -->
+                <form id="forgotForm" class="auth-form hidden">
+                    <span class="form-kicker">ACCOUNT RECOVERY</span>
+                    <h2>Forgot your password?</h2>
+                    <p class="form-description">
+                        Enter your LRN to submit a password-reset request
+                        for the administrator to review.
+                    </p>
+
+                    <label for="forgotLrn">Learner Reference Number (LRN)</label>
+                    <input id="forgotLrn" type="text" maxlength="30"
+                           placeholder="Enter your registered LRN" required>
+
+                    <button class="button button-primary full-width" type="submit">
+                        Submit Reset Request
+                    </button>
+
+                    <p class="form-switch">
+                        Remembered your password?
+                        <button type="button" class="text-button"
+                                data-action="show-login">Back to login</button>
+                    </p>
+                </form>
+            </div>
+        </div>
+
+        <footer class="auth-footer">
+            Guagua National Colleges · GNC PeerLearn
+        </footer>
+    </section>
+
+    <!-- MAIN APPLICATION -->
+    <section id="appScreen" class="app-screen hidden">
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-brand">
+                <a class="brand" href="#" data-view="home">
+                    <span class="brand-mark">P</span>
+                    <span>Peer<span class="brand-green">Learn</span></span>
+                </a>
+                <button id="closeSidebar" class="icon-button mobile-only"
+                        type="button" aria-label="Close menu">×</button>
+            </div>
+
+            <div class="sidebar-profile">
+                <div id="sidebarAvatar" class="avatar">S</div>
+                <div class="profile-copy">
+                    <strong id="sidebarName">Student</strong>
+                    <span id="sidebarRole">Student</span>
+                </div>
+            </div>
+
+            <p class="sidebar-heading">WORKSPACE</p>
+            <nav class="sidebar-nav">
+                <button class="nav-item active" type="button" data-view="home">
+                    <span class="nav-symbol">H</span> Home
+                </button>
+                <button class="nav-item" type="button" data-view="topics">
+                    <span class="nav-symbol">T</span> Topics
+                </button>
+                <button class="nav-item" type="button" data-view="myPosts">
+                    <span class="nav-symbol">P</span> My Posts
+                </button>
+                <button class="nav-item" type="button" data-view="resources">
+                    <span class="nav-symbol">R</span> Resources
+                </button>
+            </nav>
+
+            <div id="adminNav" class="hidden">
+                <p class="sidebar-heading">ADMINISTRATION</p>
+                <nav class="sidebar-nav">
+                    <button class="nav-item" type="button" data-view="admin">
+                        <span class="nav-symbol">A</span> Admin Dashboard
+                    </button>
+                </nav>
+            </div>
+
+            <div class="sidebar-bottom">
+                <div class="sidebar-school">
+                    <img src="./gnc logo.jpg" alt=""
+                         onerror="this.style.display='none'">
+                    <div>
+                        <strong>GNC PeerLearn</strong>
+                        <span>Student Community</span>
+                    </div>
+                </div>
+                <button id="logoutButton" class="logout-button" type="button">
+                    <span class="nav-symbol">↪</span> Log Out
+                </button>
+            </div>
+        </aside>
+
+        <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+        <div class="main-panel">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button id="openSidebar" class="icon-button mobile-only"
+                            type="button" aria-label="Open menu">☰</button>
+                    <div>
+                        <div class="breadcrumb">GNC / <span id="pageCrumb">Home</span></div>
+                        <h2 id="pageHeading">Student Discussion Feed</h2>
+                    </div>
+                </div>
+
+                <div class="topbar-right">
+                    <span class="online-indicator"></span>
+                    <span id="topName" class="top-name">Student</span>
+                    <img src="./gnc logo.jpg" alt="GNC Logo"
+                         class="top-logo" onerror="this.style.display='none'">
+                </div>
+            </header>
+
+            <main class="workspace">
+
+                <!-- HOME / FEED -->
+                <section id="homeView" class="page-view">
+                    <div class="welcome-banner">
+                        <div>
+                            <span class="eyebrow">YOUR LEARNING COMMUNITY</span>
+                            <h1>Welcome, <span id="welcomeName">Student</span></h1>
+                            <p>Share what you know. Ask questions. Learn together.</p>
+                        </div>
+                        <button class="button button-light" type="button"
+                                data-action="new-post">+ Create Discussion</button>
+                    </div>
+
+                    <div class="stats-grid">
+                        <article class="stat-card">
+                            <span class="stat-label">Discussions</span>
+                            <strong id="statPosts">0</strong>
+                            <span class="stat-note">Community posts</span>
+                        </article>
+                        <article class="stat-card">
+                            <span class="stat-label">Comments</span>
+                            <strong id="statComments">0</strong>
+                            <span class="stat-note">Shared responses</span>
+                        </article>
+                        <article class="stat-card">
+                            <span class="stat-label">Your Course</span>
+                            <strong id="statCourse">BSIT</strong>
+                            <span class="stat-note">Academic community</span>
+                        </article>
+                    </div>
+
+                    <div class="section-heading">
+                        <div>
+                            <h2>Discussion Feed</h2>
+                            <p>Questions, ideas, and conversations from students.</p>
+                        </div>
+                        <button class="button button-primary" type="button"
+                                data-action="new-post">+ New Post</button>
+                    </div>
+
+                    <form id="postForm" class="composer-card hidden">
+                        <h3>Create a discussion</h3>
+                        <label for="postTitle">Discussion title</label>
+                        <input id="postTitle" maxlength="140"
+                               placeholder="What would you like to discuss?" required>
+
+                        <label for="postCategory">Topic</label>
+                        <select id="postCategory" required>
+                            <option value="Programming">Programming</option>
+                            <option value="Web Development">Web Development</option>
+                            <option value="Database">Database</option>
+                            <option value="Networking">Networking</option>
+                            <option value="School Help">School Help</option>
+                            <option value="Projects">Projects</option>
+                            <option value="General">General</option>
+                        </select>
+
+                        <label for="postBody">Your message</label>
+                        <textarea id="postBody" rows="4" maxlength="5000"
+                                  placeholder="Write your question or share your ideas..."
+                                  required></textarea>
+
+                        <div class="composer-actions">
+                            <button class="button button-muted" type="button"
+                                    data-action="cancel-post">Cancel</button>
+                            <button class="button button-primary" type="submit">
+                                Publish Discussion
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="filter-row">
+                        <label for="feedFilter">Filter by topic</label>
+                        <select id="feedFilter">
+                            <option value="All">All topics</option>
+                            <option value="Programming">Programming</option>
+                            <option value="Web Development">Web Development</option>
+                            <option value="Database">Database</option>
+                            <option value="Networking">Networking</option>
+                            <option value="School Help">School Help</option>
+                            <option value="Projects">Projects</option>
+                            <option value="General">General</option>
+                        </select>
+                        <span id="postCount" class="muted-text">0 discussions</span>
+                    </div>
+
+                    <div id="postList" class="post-list"></div>
+                    <div id="emptyFeed" class="empty-state">
+                        <h3>No discussions yet</h3>
+                        <p>Start the conversation by creating the first post.</p>
+                        <button class="button button-primary" type="button"
+                                data-action="new-post">Create First Post</button>
+                    </div>
+                </section>
+
+                <!-- TOPICS -->
+                <section id="topicsView" class="page-view hidden">
+                    <div class="page-intro">
+                        <span class="eyebrow">EXPLORE SUBJECTS</span>
+                        <h1>Discussion Topics</h1>
+                        <p>Select a topic to view related discussions.</p>
+                    </div>
+                    <div id="topicCards" class="topic-grid"></div>
+                </section>
+
+                <!-- MY POSTS -->
+                <section id="myPostsView" class="page-view hidden">
+                    <div class="page-intro">
+                        <span class="eyebrow">YOUR CONTRIBUTIONS</span>
+                        <h1>My Posts</h1>
+                        <p>Manage the discussions you have created.</p>
+                    </div>
+                    <div id="myPostList" class="post-list"></div>
+                    <div id="emptyMyPosts" class="empty-state">
+                        <h3>You have not posted anything yet</h3>
+                        <p>Your discussions will appear here.</p>
+                        <button class="button button-primary" type="button"
+                                data-action="new-post">Create a Discussion</button>
+                    </div>
+                </section>
+
+                <!-- RESOURCES -->
+                <section id="resourcesView" class="page-view hidden">
+                    <div class="page-intro">
+                        <span class="eyebrow">LEARNING MATERIALS</span>
+                        <h1>Learning Resources</h1>
+                        <p>Explore helpful links shared for your academic learning.</p>
+                    </div>
+
+                    <form id="resourceForm" class="composer-card hidden">
+                        <h3>Add a learning resource</h3>
+                        <label for="resourceTitle">Resource title</label>
+                        <input id="resourceTitle" maxlength="120"
+                               placeholder="e.g. HTML learning guide" required>
+                        <label for="resourceUrl">Resource URL</label>
+                        <input id="resourceUrl" type="url"
+                               placeholder="https://example.com" required>
+                        <label for="resourceDescription">Description</label>
+                        <textarea id="resourceDescription" rows="3" maxlength="500"
+                                  placeholder="What can students learn from this resource?"></textarea>
+                        <div class="composer-actions">
+                            <button class="button button-muted" type="button"
+                                    data-action="cancel-resource">Cancel</button>
+                            <button class="button button-primary" type="submit">
+                                Save Resource
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="section-heading">
+                        <div>
+                            <h2>Available Resources</h2>
+                            <p>Study guides and external learning materials.</p>
+                        </div>
+                        <button id="addResourceButton"
+                                class="button button-primary hidden"
+                                type="button" data-action="new-resource">
+                            + Add Resource
+                        </button>
+                    </div>
+                    <div id="resourceList" class="resource-grid"></div>
+                    <div id="emptyResources" class="empty-state">
+                        <h3>No resources available</h3>
+                        <p>The administrator can add learning resources here.</p>
+                    </div>
+                </section>
+
+                <!-- ADMIN DASHBOARD -->
+                <section id="adminView" class="page-view hidden">
+                    <div class="page-intro">
+                        <span class="eyebrow">ADMINISTRATION</span>
+                        <h1>Admin Dashboard</h1>
+                        <p>Manage topics, resources, discussions, and password requests.</p>
+                    </div>
+
+                    <div class="stats-grid">
+                        <article class="stat-card">
+                            <span class="stat-label">Discussions</span>
+                            <strong id="adminPostCount">0</strong>
+                            <span class="stat-note">Total posts</span>
+                        </article>
+                        <article class="stat-card">
+                            <span class="stat-label">Accounts</span>
+                            <strong id="adminUserCount">0</strong>
+                            <span class="stat-note">Registered users</span>
+                        </article>
+                        <article class="stat-card">
+                            <span class="stat-label">Reset Requests</span>
+                            <strong id="adminResetCount">0</strong>
+                            <span class="stat-note">Awaiting review</span>
+                        </article>
+                    </div>
+
+                    <div class="admin-grid">
+                        <div class="admin-card">
+                            <h2>Manage Topics</h2>
+                            <p>Add a topic for student discussions.</p>
+                            <form id="topicForm" class="compact-form">
+                                <label for="newTopicName">Topic name</label>
+                                <input id="newTopicName" maxlength="50"
+                                       placeholder="Enter topic name" required>
+                                <button class="button button-primary full-width"
+                                        type="submit">Add Topic</button>
+                            </form>
+                            <div id="adminTopicList" class="admin-list"></div>
+                        </div>
+
+                        <div class="admin-card">
+                            <h2>Password Reset Requests</h2>
+                            <p>Review student requests and set a new password.</p>
+                            <div id="resetRequestList" class="admin-list"></div>
+                        </div>
+                    </div>
+
+                    <div class="admin-card moderation-card">
+                        <h2>Manage Discussions</h2>
+                        <p>Review or remove posts that violate community rules.</p>
+                        <div id="moderationList" class="admin-list"></div>
+                    </div>
+
+                    <div class="admin-card">
+                        <h2>Registered Accounts</h2>
+                        <p>Accounts created on this browser prototype.</p>
+                        <div id="adminAccountsList" class="admin-list"></div>
+                    </div>
+                </section>
+
+                <!-- OPEN POST DETAIL -->
+                <section id="postDetailView" class="page-view hidden">
+                    <button class="button button-muted back-button"
+                            type="button" data-action="back-to-feed">
+                        ← Back to discussions
+                    </button>
+                    <div id="postDetail"></div>
+                </section>
+
+            </main>
+
+            <footer class="app-footer">
+                GNC PeerLearn · Guagua National Colleges
+            </footer>
+        </div>
+    </section>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <!-- PASSWORD RESET DIALOG -->
+    <dialog id="resetDialog" class="modal">
+        <form id="resetPasswordForm" class="modal-content">
+            <h2>Set a new password</h2>
+            <p id="resetDialogDescription">Review the password reset request.</p>
+            <input id="resetRequestId" type="hidden">
+            <label for="newResetPassword">New password</label>
+            <input id="newResetPassword" type="password" minlength="6"
+                   placeholder="At least 6 characters" required>
+            <div class="composer-actions">
+                <button class="button button-muted" type="button"
+                        data-action="close-reset">Cancel</button>
+                <button class="button button-primary" type="submit">
+                    Save New Password
+                </button>
+            </div>
+        </form>
+    </dialog>
+
+    <script src="./script.js"></script>
+</body>
+</html>
