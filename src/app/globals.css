@@ -1,26 +1,48 @@
+/**
+ * FILE: src/app/globals.css
+ * PURPOSE: Tailwind v4 configuration with @custom-variant dark, GNC institutional
+ *          color tokens, and subtle cubic-bezier animations for drawers and dropdowns.
+ * USED BY / CALLED BY: src/app/layout.js.
+ * TROUBLESHOOT: If dark mode classes do not toggle, verify @custom-variant dark
+ *               is present and .dark is toggled on document.documentElement.
+ */
+
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --gnc-green: #0f4c25;
+  --gnc-gold: #c59b27;
+  --gnc-crimson: #a31d1d;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes dropdownFade {
+  from {
+    transform: translateY(-6px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-drawer {
+  animation: slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-dropdown {
+  animation: dropdownFade 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
