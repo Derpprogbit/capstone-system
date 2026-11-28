@@ -1,114 +1,36 @@
-/**
- * FILE: src/app/about/page.js
- * ROUTE: /about
- * PURPOSE: Detailed overview of Knowledge Breach's mission, peer trust system,
- *          and team recruitment workflow for Guagua National Colleges BSIT students.
- *          Purely informational; no state, effects, or data fetching.
- * DATA FLOW: None — static content only. Reads no database tables and calls no
- *            API endpoints. All text and icons are hardcoded.
- * USED BY / CALLED BY: Navbar About link (desktop and mobile navigation).
- * TROUBLESHOOT: Static informational page; no database calls required. If links
- *               don't navigate, verify Next.js Link href values point to "/" and
- *               "/subjects".
- */
+// FILE: src/app/about/page.js
+// PURPOSE: Institutional overview and guide for Knowledge Bridge at GNC.
 
-import Link from "next/link";
-import { ShieldCheck, Users, BookOpen, MessageSquare } from "lucide-react";
+import { Network, ShieldCheck, Users } from 'lucide-react';
 
 export default function AboutPage() {
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8">
-        <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-[#0F4C25]/10 text-[#0F4C25] dark:bg-[#0F4C25]/30 dark:text-emerald-300 mb-3">
-          Guagua National Colleges • BSIT
-        </span>
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">
-          About Knowledge Breach
-        </h1>
-        <p className="mt-3 text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed">
-          Knowledge Breach is the dedicated BSIT Peer Commons for Guagua National Colleges.
-          It brings together structured IT curriculum references, capstone &amp; lab team
-          recruitment, and a transparent peer trust system so students can collaborate
-          effectively across Networking, Web Development, Software Engineering, and Game
-          Development.
-        </p>
-      </section>
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 sm:p-8 max-w-4xl space-y-6">
+      <div className="space-y-1">
+        <span className="text-xs font-mono font-bold text-[#0F4C25] dark:text-emerald-400">GUAGUA NATIONAL COLLEGES • BSIT CAPSTONE</span>
+        <h1 className="text-2xl font-bold">About Knowledge Bridge</h1>
+      </div>
 
-      <section className="grid sm:grid-cols-2 gap-4">
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-          <div className="w-10 h-10 rounded-lg bg-[#0F4C25]/10 text-[#0F4C25] dark:text-[#C59B27] flex items-center justify-center mb-3">
-            <ShieldCheck className="w-5 h-5" />
-          </div>
-          <h2 className="font-bold text-slate-900 dark:text-slate-100">
-            Peer Trust &amp; Endorsements
-          </h2>
-          <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-300">
-            Students can rate and endorse peers (1–5 stars + feedback) after collaborating.
-            Peers who maintain a 4.0★+ average with at least 2 reviews earn the{" "}
-            <strong className="text-[#C59B27]">Trusted Mentor</strong> badge.
-          </p>
+      <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+        <strong>Knowledge Bridge</strong> is a collaborative academic learning and peer-mentorship portal designed for Bachelor of Science in Information Technology (BSIT) students at <strong>Guagua National Colleges</strong> in Guagua, Pampanga.
+      </p>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-800 space-y-1.5">
+          <Network className="w-5 h-5 text-[#0F4C25]" />
+          <h2 className="text-sm font-bold">Subject-Aligned Labs</h2>
+          <p className="text-xs text-slate-500">Interactive 7-Layer OSI reference, Cisco Packet Tracer guides, Web Dev, Software Eng, and Game Dev resources.</p>
         </div>
-
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-          <div className="w-10 h-10 rounded-lg bg-[#0F4C25]/10 text-[#0F4C25] dark:text-[#C59B27] flex items-center justify-center mb-3">
-            <Users className="w-5 h-5" />
-          </div>
-          <h2 className="font-bold text-slate-900 dark:text-slate-100">
-            Team Recruitment Workflow
-          </h2>
-          <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-300">
-            Post open capstone or lab roles using comma-separated tags (e.g.,{" "}
-            <code className="text-xs px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800">
-              Frontend, Cisco Config, Docs
-            </code>
-            ) and connect directly via 1-on-1 Direct Messages.
-          </p>
+        <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-800 space-y-1.5">
+          <ShieldCheck className="w-5 h-5 text-[#C59B27]" />
+          <h2 className="text-sm font-bold">Peer Trust Reputation</h2>
+          <p className="text-xs text-slate-500">Students rate helpful classmates 1–5★. Helpers maintaining ≥ 4.5★ across 5+ reviews earn Verified Trusted Mentor status.</p>
         </div>
-
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-          <div className="w-10 h-10 rounded-lg bg-[#0F4C25]/10 text-[#0F4C25] dark:text-[#C59B27] flex items-center justify-center mb-3">
-            <BookOpen className="w-5 h-5" />
-          </div>
-          <h2 className="font-bold text-slate-900 dark:text-slate-100">
-            Structured IT Subjects
-          </h2>
-          <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-300">
-            Drill down into Networking 1 &amp; Cisco Labs (OSI 7-Layer tables, IPv4/VLSM
-            cheat sheets, YouTube lectures, and <code className="text-xs">.pkt</code>{" "}
-            files), Web UI, Software Engineering, and Game Development.
-          </p>
+        <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-800 space-y-1.5">
+          <Users className="w-5 h-5 text-[#A31D1D]" />
+          <h2 className="text-sm font-bold">Capstone Team Slots</h2>
+          <p className="text-xs text-slate-500">Built-in team recruitment counters and 1-on-1 direct messaging help BSIT students form balanced thesis groups.</p>
         </div>
-
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-          <div className="w-10 h-10 rounded-lg bg-[#0F4C25]/10 text-[#0F4C25] dark:text-[#C59B27] flex items-center justify-center mb-3">
-            <MessageSquare className="w-5 h-5" />
-          </div>
-          <h2 className="font-bold text-slate-900 dark:text-slate-100">
-            Real-Time 1-on-1 DMs
-          </h2>
-          <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-300">
-            Click <strong>Request to Join / DM</strong> on any post or sidebar slot to
-            open the slide-over chat drawer and coordinate with your teammates.
-          </p>
-        </div>
-      </section>
-
-      <div className="flex flex-wrap gap-3">
-        {/* [UI: EXPLORE FEED LINK BUTTON] */}
-        <Link
-          href="/"
-          className="px-4 py-2.5 rounded-lg bg-[#0F4C25] hover:bg-[#0b3a1c] text-white text-sm font-semibold transition-colors"
-        >
-          Explore Peer Feed
-        </Link>
-
-        {/* [UI: BROWSE SUBJECTS LINK BUTTON] */}
-        <Link
-          href="/subjects"
-          className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-[#0F4C25] text-sm font-semibold text-slate-800 dark:text-slate-100 transition-colors"
-        >
-          Browse IT Subjects
-        </Link>
       </div>
     </div>
   );

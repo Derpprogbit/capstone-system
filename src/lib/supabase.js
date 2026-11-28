@@ -1,35 +1,26 @@
-/**
- * FILE: src/lib/supabase.js
- * ROUTE: Shared library module (not a page or API route)
- * PURPOSE: Reusable Supabase client connection with safe fallback check when
- *          environment variables are not yet configured. Exports a configured
- *          supabase client and an isSupabaseConfigured boolean flag.
- * DATA FLOW: Reads NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
- *            from environment variables. Falls back to placeholder values if
- *            missing so the app can still build. isSupabaseConfigured gates all
- *            Supabase calls across the app.
- * USED BY / CALLED BY: All API routes (src/app/api/*) and all client pages/
- *                      components that call supabase.auth, supabase.from, etc.
- * TROUBLESHOOT: Ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
- *               are set in .env.local. If missing, isSupabaseConfigured is false
- *               and all Supabase calls are skipped gracefully.
- */
+// FILE: src/lib/supabase.js
+// PURPOSE: Connects the app to Supabase using public environment variables.
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://xcuvryrfsfzneqmnvoki.supabase.co      ";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_cEMJ0DRqdWgyE7-34z4VrA_lJwScRi7";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-export const isSupabaseConfigured = Boolean(
-  supabaseUrl &&
-    supabaseAnonKey &&
-    supabaseUrl.startsWith("http")
-);
+// Browser client used across components
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// [STEP 1 - FLOW: Initialize Supabase client with safe placeholder fallback for build-time safety.
-//  If env vars are missing, uses placeholder URL/key so the module imports cleanly
-//  during Next.js build; all runtime calls are guarded by isSupabaseConfigured.]
-export const supabase = createClient(
-  isSupabaseConfigured ? supabaseUrl : "https://placeholder.supabase.co",
-  isSupabaseConfigured ? supabaseAnonKey : "placeholder-anon-key"
-);
+// Server helper: verifies the user's login token inside /api/* routes so IDs cannot be faked
+export async function getAuthUser(request) {
+  const authHeader = request.headers.get('authorization') || '';
+  const token = authHeader.replace('Bearer ', '').trim();
+  if (!token) return { user: null, db: supabase };
+
+  // Create a scoped client carrying the user's JWT so Postgres RLS applies automatically
+  const scopedClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+
+  const { data, error } = await scopedClient.auth.getUser(token);
+  if (error || !data?.user) return { user: null, db: scopedClient };
+  return { user: data.user, db: scopedClient };
+}

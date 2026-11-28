@@ -1,584 +1,179 @@
-/**
- * FILE: src/app/profile/page.js
- * ROUTE: /profile?tab=<profile|dashboard|settings>
- * PURPOSE: Tabbed user hub (?tab=profile, ?tab=dashboard, ?tab=settings) for
- *          editing Full Name/Gender/Location, adding Achievements/Certifications,
- *          viewing received Peer Comments & Ratings, viewing personal Dashboard
- *          metrics, toggling Light/Dark mode, and updating Email/Password.
- * DATA FLOW:
- *   • On mount, loads theme from localStorage, then fetches the current user
- *     session, profile row from public.profiles, ratings from /api/ratings, and
- *     posts from /api/posts.
- *   • Profile tab: edits full_name/gender/location/achievements and saves via
- *     supabase.from("profiles").update().
- *   • Settings tab: toggles theme (localStorage) and updates email/password via
- *     supabase.auth.updateUser().
- * USED BY / CALLED BY: Navbar Profile dropdown (/profile).
- * TROUBLESHOOT: Wrapped in Suspense for Next.js useSearchParams() compatibility.
- *               If data doesn't load, verify schema.sql was executed and
- *               Supabase is configured in .env.local.
- */
+// FILE: src/app/profile/page.js
+// PURPOSE: Tabbed hub for My Profile, Student/Admin Dashboard, and Settings.
 
-"use client";
+'use client';
 
-import { useState, useEffect, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import {
-  User,
-  LayoutDashboard,
-  Settings,
-  Award,
-  Star,
-  Sun,
-  Moon,
-  Plus,
-} from "lucide-react";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+import { isAdmin, isTrustedMentor } from '@/lib/helpers';
+import { ShieldCheck, Award } from 'lucide-react';
 
-function ProfileHubContent() {
+function ProfileContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const activeTab = searchParams.get("tab") || "profile";
+  const activeTab = searchParams.get('tab') || 'profile';
 
-  // [STEP 1 - FLOW: Holds the authenticated Supabase Auth user object (or null).
-  //  Set by loadData() from supabase.auth.getSession().]
-  const [user, setUser] = useState(null);
-  // [STEP 2 - FLOW: Holds the matching public.profiles row (or null). Populated
-  //  by loadData() and used to pre-fill the profile edit form.]
   const [profile, setProfile] = useState(null);
-  // [STEP 3 - FLOW: Holds the array of ratings received by the current user.
-  //  Populated by loadData() from GET /api/ratings.]
-  const [ratings, setRatings] = useState([]);
-  // [STEP 4 - FLOW: Holds the count of posts authored by the current user.
-  //  Populated by loadData() from GET /api/posts?authorId=.]
-  const [myPostsCount, setMyPostsCount] = useState(0);
-  // [STEP 5 - FLOW: Boolean loading flag. true while initial data is being
-  //  fetched; false once loadData() completes.]
-  const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState('');
+  const [reviews, setReviews] = useState([]);
+  const [allStudents, setAllStudents] = useState([]);
+  const [allPosts, setAllPosts] = useState([]);
+  const [fullName, setFullName] = useState('');
+  const [section, setSection] = useState('');
 
-  // Profile form state
-  // [STEP 6 - FLOW: Holds the full name being edited in the profile form.
-  //  Updated on keystroke; saved to public.profiles on Save Profile.]
-  const [fullName, setFullName] = useState("");
-  // [STEP 7 - FLOW: Holds the gender being edited in the profile form.
-  //  Updated on keystroke; saved to public.profiles on Save Profile.]
-  const [gender, setGender] = useState("");
-  // [STEP 8 - FLOW: Holds the location being edited in the profile form.
-  //  Updated on keystroke; saved to public.profiles on Save Profile.]
-  const [location, setLocation] = useState("");
-  // [STEP 9 - FLOW: Holds the array of achievement strings. Items are added via
-  //  handleAddAchievement and persisted to public.profiles on Save Profile.]
-  const [achievements, setAchievements] = useState([]);
-  // [STEP 10 - FLOW: Holds the text typed into the new achievement input.
-  //  Cleared after handleAddAchievement adds it to the achievements array.]
-  const [newAchievement, setNewAchievement] = useState("");
-  // [STEP 11 - FLOW: Holds success/error messages for the profile save form.
-  //  Set by handleSaveProfile after the Supabase update completes.]
-  const [profileMsg, setProfileMsg] = useState("");
+  // Load user profile, received ratings, and admin data if admin
+  async function loadProfileData() {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const session = sessionData?.session;
+    if (!session) return router.push('/login');
+    setToken(session.access_token);
 
-  // Settings form state
-  // [STEP 12 - FLOW: Holds the current theme ("light" or "dark"). Toggled by
-  //  the Light/Dark mode buttons and persisted to localStorage.]
-  const [theme, setTheme] = useState("light");
-  // [STEP 13 - FLOW: Holds the new email address typed into the settings form.
-  //  Submitted to supabase.auth.updateUser() on Update Credentials.]
-  const [newEmail, setNewEmail] = useState("");
-  // [STEP 14 - FLOW: Holds the new password typed into the settings form.
-  //  Submitted to supabase.auth.updateUser() on Update Credentials.]
-  const [newPassword, setNewPassword] = useState("");
-  // [STEP 15 - FLOW: Holds success/error messages for the credentials form.
-  //  Set by handleUpdateCredentials after the Supabase update completes.]
-  const [settingsMsg, setSettingsMsg] = useState("");
+    const { data: prof } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+    if (!prof) return;
+    setProfile(prof);
+    setFullName(prof.full_name);
+    setSection(prof.section || '');
 
-  // [STEP 16 - FLOW (useEffect): Loads the saved theme from localStorage on
-  //  mount. Reads "kb_theme" (defaults to "light") and sets theme state.]
-  useEffect(() => {
-    const saved = localStorage.getItem("kb_theme") || "light";
-    setTheme(saved);
-  }, []);
+    const revRes = await fetch(`/api/ratings?mentorId=${prof.id}`);
+    const revData = await revRes.json();
+    setReviews(revData.ratings || []);
 
-  // [STEP 17 - FLOW (useEffect): Loads the authenticated user, profile, ratings,
-  //  and post count on mount. Calls supabase.auth.getSession() to get the user,
-  //  then fetches public.profiles, GET /api/ratings, and GET /api/posts in
-  //  parallel via Promise.all.]
-  useEffect(() => {
-    if (!isSupabaseConfigured) {
-      setLoading(false);
-      return;
+    if (isAdmin(prof)) {
+      const { data: students } = await supabase.from('profiles').select('*').eq('role', 'student');
+      const { data: posts } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
+      setAllStudents(students || []);
+      setAllPosts(posts || []);
     }
+  }
 
-    async function loadData() {
-      // [DATA CALL: supabase.auth.getSession() — talks to Supabase Auth to
-      //  retrieve the current session. Expects { data: { session: { user } } }.]
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
+  useEffect(() => { loadProfileData(); }, []);
 
-      if (currentUser) {
-        setNewEmail(currentUser.email || "");
-        const [{ data: prof }, ratingsRes, postsRes] = await Promise.all([
-          // [DATA CALL: supabase.from("profiles").select("*").eq("id", ...).single()
-          //  — talks to public.profiles. Expects a single profile row matching
-          //  the authenticated user's id.]
-          supabase.from("profiles").select("*").eq("id", currentUser.id).single(),
-          // [DATA CALL: fetch GET /api/ratings?userId=<currentUser.id>
-          //  — talks to the /api/ratings GET endpoint, which queries public.ratings
-          //  joined with rater profiles. Expects { ratings: [...] } JSON.]
-          fetch(`/api/ratings?userId=${encodeURIComponent(currentUser.id)}`),
-          // [DATA CALL: fetch GET /api/posts?authorId=<currentUser.id>
-          //  — talks to the /api/posts GET endpoint, which queries public.posts
-          //  joined with author profiles. Expects { posts: [...] } JSON.]
-          fetch(`/api/posts?authorId=${encodeURIComponent(currentUser.id)}`),
-        ]);
-
-        if (prof) {
-          setProfile(prof);
-          setFullName(prof.full_name || "");
-          setGender(prof.gender || "");
-          setLocation(prof.location || "");
-          setAchievements(prof.achievements || []);
-        }
-
-        const rData = await ratingsRes.json();
-        setRatings(rData.ratings || []);
-
-        const pData = await postsRes.json();
-        setMyPostsCount((pData.posts || []).length);
-      }
-      setLoading(false);
-    }
-
-    loadData();
-  }, []);
-
-  // [STEP 18 - FLOW (handler): Saves profile updates to public.profiles.
-  //  Validates user exists, then calls supabase.from("profiles").update() with
-  //  full_name, gender, location, achievements, and updated_at. Shows success
-  //  or error message via profileMsg state.]
-  async function handleSaveProfile(e) {
+  // Save updated name or section
+  async function handleSaveSettings(e) {
     e.preventDefault();
-    if (!user) return;
-    setProfileMsg("");
-
-    // [DATA CALL: supabase.from("profiles").update({ full_name, gender, location,
-    //  achievements, updated_at }).eq("id", user.id)
-    //  — talks to public.profiles. Updates the current user's row with the
-    //  edited form values. Expects { error } or success.]
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        full_name: fullName.trim(),
-        gender: gender.trim(),
-        location: location.trim(),
-        achievements,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", user.id);
-
-    setProfileMsg(error ? error.message : "Profile updated successfully.");
+    await supabase.from('profiles').update({ full_name: fullName, section }).eq('id', profile.id);
+    alert('Profile updated!');
+    loadProfileData();
   }
 
-  // [STEP 19 - FLOW (handler): Adds a new achievement to the achievements array.
-  //  Validates the input is non-empty, appends the trimmed achievement, and
-  //  clears the input field.]
-  function handleAddAchievement() {
-    if (!newAchievement.trim()) return;
-    setAchievements((prev) => [...prev, newAchievement.trim()]);
-    setNewAchievement("");
+  // Admin action: pin/unpin post or verify student mentor
+  async function adminAction(payload) {
+    await fetch('/api/admin', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+    loadProfileData();
   }
 
-  // [STEP 20 - FLOW (handler): Toggles Light/Dark theme. Sets theme state,
-  //  persists to localStorage as "kb_theme", and adds/removes the .dark class
-  //  on document.documentElement for Tailwind dark-mode styling.]
-  function handleToggleTheme(nextTheme) {
-    setTheme(nextTheme);
-    localStorage.setItem("kb_theme", nextTheme);
-    if (nextTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }
-
-  // [STEP 21 - FLOW (handler): Updates Supabase Auth email and/or password.
-  //  Builds an updates object from newEmail and newPassword (only when changed),
-  //  calls supabase.auth.updateUser(updates), and shows success/error via
-  //  settingsMsg state.]
-  async function handleUpdateCredentials(e) {
-    e.preventDefault();
-    setSettingsMsg("");
-    const updates = {};
-    if (newEmail && newEmail !== user?.email) updates.email = newEmail.trim();
-    if (newPassword) updates.password = newPassword;
-
-    if (Object.keys(updates).length === 0) {
-      setSettingsMsg("No credential changes to save.");
-      return;
-    }
-
-    // [DATA CALL: supabase.auth.updateUser({ email, password })
-    //  — talks to Supabase Auth. Updates the current user's email and/or
-    //  password. Expects { error } or success.]
-    const { error } = await supabase.auth.updateUser(updates);
-    if (error) {
-      setSettingsMsg(error.message);
-    } else {
-      setNewPassword("");
-      setSettingsMsg("Account credentials updated.");
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="p-8 text-center text-sm text-slate-500">
-        Loading profile hub...
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="max-w-md mx-auto mt-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 text-center">
-        <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-          You are not signed in.
-        </p>
-        <Link
-          href="/login"
-          className="inline-block mt-4 px-4 py-2 rounded-lg bg-[#0F4C25] text-white text-sm font-semibold"
-        >
-          Sign In
-        </Link>
-      </div>
-    );
-  }
-
-  const tabs = [
-    { id: "profile", label: "My Profile", icon: User },
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "settings", label: "Settings & Theme", icon: Settings },
-  ];
+  if (!profile) return <p className="text-xs text-slate-500">Loading profile...</p>;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Tab Navigation */}
-      <div className="flex flex-wrap gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            /* [UI ELEMENT: PROFILE HUB TAB BUTTON - clicking navigates to /profile?tab=<tab.id> (My Profile, Dashboard, or Settings & Theme) and highlights the active tab.] */
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => router.push(`/profile?tab=${tab.id}`)}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                isActive
-                  ? "bg-[#0F4C25] text-white"
-                  : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300"
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          );
-        })}
+    <div className="space-y-6">
+      {/* Navigation Tabs */}
+      <div className="flex gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 text-xs font-semibold">
+        {['profile', 'dashboard', 'settings'].map((tab) => (
+          <button key={tab} onClick={() => router.push(`/profile?tab=${tab}`)}
+            className={`px-3.5 py-1.5 rounded-lg capitalize ${activeTab === tab ? 'bg-[#0F4C25] text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800'}`}>
+            {tab}
+          </button>
+        ))}
       </div>
 
       {/* TAB 1: MY PROFILE */}
-      {activeTab === "profile" && (
-        <div className="grid md:grid-cols-12 gap-6">
-          <form
-            onSubmit={handleSaveProfile}
-            className="md:col-span-7 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-4"
-          >
-            <h2 className="font-bold text-base text-slate-900 dark:text-slate-100">
-              Student Profile Details
-            </h2>
-
+      {activeTab === 'profile' && (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-4">
+          <div className="flex items-center justify-between">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                Full Name
-              </label>
-              {/* [UI ELEMENT: PROFILE FULL NAME INPUT — typing updates fullName
-               *  state via setFullName. Submitted to public.profiles on Save
-               *  Profile.] */}
-              <input
-                type="text"
-                required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm"
-              />
+              <h1 className="text-xl font-bold">{profile.full_name}</h1>
+              <p className="text-xs font-mono text-slate-500">{profile.email} • {profile.section} • {profile.track}</p>
             </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                  Gender
-                </label>
-                {/* [UI ELEMENT: PROFILE GENDER INPUT — typing updates gender
-                 *  state via setGender. Submitted to public.profiles on Save
-                 *  Profile.] */}
-                <input
-                  type="text"
-                  value={gender}
-                  onChange={(e) => setGender(e.target.value)}
-                  placeholder="Optional"
-                  className="w-full px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                  Location
-                </label>
-                {/* [UI ELEMENT: PROFILE LOCATION INPUT — typing updates location
-                 *  state via setLocation. Submitted to public.profiles on Save
-                 *  Profile.] */}
-                <input
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="e.g. Guagua, Pampanga"
-                  className="w-full px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                Achievements &amp; Certifications
-              </label>
-              <div className="flex gap-2">
-                {/* [UI ELEMENT: NEW ACHIEVEMENT INPUT — typing updates newAchievement
-                 *  state via setNewAchievement. Submitted via the Add Achievement
-                 *  button to append to the achievements array.] */}
-                <input
-                  type="text"
-                  value={newAchievement}
-                  onChange={(e) => setNewAchievement(e.target.value)}
-                  placeholder="e.g. Cisco CCNAv7 Intro"
-                  className="flex-1 px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm"
-                />
-                {/* [UI ELEMENT: ADD ACHIEVEMENT BUTTON — clicking calls
-                 *  handleAddAchievement, which appends the trimmed newAchievement
-                 *  to the achievements array and clears the input.] */}
-                <button
-                  type="button"
-                  onClick={handleAddAchievement}
-                  className="px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-semibold inline-flex items-center gap-1"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Add
-                </button>
-              </div>
-
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {achievements.map((ach, idx) => (
-                  <span
-                    key={`${ach}-${idx}`}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-[#C59B27]/15 text-[#7c5f0c] dark:text-[#e6be4c]"
-                  >
-                    <Award className="w-3 h-3" />
-                    {ach}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {profileMsg && (
-              <p className="text-xs text-[#0F4C25] dark:text-emerald-400">
-                {profileMsg}
-              </p>
+            {isTrustedMentor(profile) && (
+              <span className="px-3 py-1 rounded-lg bg-[#C59B27]/15 text-amber-800 dark:text-amber-300 text-xs font-mono font-bold inline-flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-[#C59B27]" /> Trusted Mentor
+              </span>
             )}
-
-            {/* [UI ELEMENT: SAVE PROFILE BUTTON — clicking submits the profile
-             *  form via handleSaveProfile, which updates public.profiles with
-             *  full_name, gender, location, achievements, and updated_at.] */}
-            <button
-              type="submit"
-              className="px-4 py-2 rounded-lg bg-[#0F4C25] hover:bg-[#0b3a1c] text-white text-sm font-semibold"
-            >
-              Save Profile
-            </button>
-          </form>
-
-          {/* Received Peer Comments & Ratings */}
-          <div className="md:col-span-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-3">
-            <h2 className="font-bold text-base text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Star className="w-4 h-4 text-[#C59B27]" />
-              Peer Comments &amp; Ratings
-            </h2>
-            {ratings.length === 0 ? (
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                No peer endorsements received yet.
-              </p>
-            ) : (
-              <ul className="space-y-3">
-                {ratings.map((r) => (
-                  <li
-                    key={r.id}
-                    className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700"
-                  >
-                    <div className="flex items-center justify-between text-xs font-semibold">
-                      <span>{r.rater?.full_name || "Peer"}</span>
-                      <span className="text-[#C59B27]">★ {r.stars}/5</span>
-                    </div>
-                    {r.comment && (
-                      <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                        {r.comment}
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
+            <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+              <div className="text-[11px] text-slate-500">Trust Score</div>
+              <div className="text-lg font-mono font-bold">★ {Number(profile.trust_score).toFixed(2)}</div>
+            </div>
+            <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+              <div className="text-[11px] text-slate-500">Peer Reviews</div>
+              <div className="text-lg font-mono font-bold">{profile.ratings_count}</div>
+            </div>
+            <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+              <div className="text-[11px] text-slate-500">Account Role</div>
+              <div className="text-lg font-mono font-bold uppercase">{profile.role}</div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* TAB 2: DASHBOARD */}
-      {activeTab === "dashboard" && (
-        <div className="grid sm:grid-cols-3 gap-4">
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-              Trust Score
-            </p>
-            <p className="mt-1 text-2xl font-bold text-[#0F4C25] dark:text-[#C59B27]">
-              ★ {Number(profile?.trust_score || 0).toFixed(2)}
-            </p>
+      {/* TAB 2: DASHBOARD (Student Reviews OR Admin Console) */}
+      {activeTab === 'dashboard' && (
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-3">
+            <h2 className="text-sm font-bold flex items-center gap-2"><Award className="w-4 h-4 text-[#C59B27]" /> Peer Endorsements Received ({reviews.length})</h2>
+            {reviews.length === 0 ? <p className="text-xs text-slate-500">No peer ratings yet.</p> : reviews.map((r) => (
+              <div key={r.id} className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 text-xs space-y-1">
+                <div className="flex justify-between font-bold"><span>{r.rater?.full_name}</span><span className="font-mono text-[#C59B27]">{r.stars} ★</span></div>
+                <p>"{r.comment}"</p>
+              </div>
+            ))}
           </div>
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-              Endorsements Received
-            </p>
-            <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
-              {profile?.ratings_count || 0}
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-              Threads Published
-            </p>
-            <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
-              {myPostsCount}
-            </p>
-          </div>
+
+          {isAdmin(profile) && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-3">
+                <h2 className="text-sm font-bold text-[#A31D1D]">Admin: Verify Student Mentors</h2>
+                {allStudents.map((st) => (
+                  <div key={st.id} className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100 dark:border-slate-800">
+                    <span>{st.full_name} (★ {Number(st.trust_score).toFixed(1)})</span>
+                    <button onClick={() => adminAction({ action: 'verify_mentor', studentId: st.id, verified_mentor: !st.verified_mentor })} className="px-2.5 py-1 rounded border font-semibold">
+                      {st.verified_mentor ? 'Verified ✓' : 'Grant Badge'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-3">
+                <h2 className="text-sm font-bold text-[#A31D1D]">Admin: Pin Threads</h2>
+                {allPosts.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100 dark:border-slate-800 gap-2">
+                    <span className="truncate">{p.title}</span>
+                    <button onClick={() => adminAction({ action: 'pin', postId: p.id, pinned: !p.pinned })} className="px-2.5 py-1 rounded border font-mono shrink-0">
+                      {p.pinned ? 'Unpin' : 'Pin'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* TAB 3: SETTINGS & THEME */}
-      {activeTab === "settings" && (
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-4">
-            <h2 className="font-bold text-base text-slate-900 dark:text-slate-100">
-              Appearance
-            </h2>
-            <div className="flex gap-3">
-              {/* [UI ELEMENT: LIGHT MODE BUTTON — clicking calls
-               *  handleToggleTheme("light"), which sets theme to "light",
-               *  persists to localStorage, and removes the .dark class.] */}
-              <button
-                type="button"
-                onClick={() => handleToggleTheme("light")}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-semibold ${
-                  theme === "light"
-                    ? "border-[#0F4C25] bg-[#0F4C25]/10 text-[#0F4C25]"
-                    : "border-slate-200 dark:border-slate-700"
-                }`}
-              >
-                <Sun className="w-4 h-4" />
-                Light Mode
-              </button>
-
-              {/* [UI ELEMENT: DARK MODE BUTTON — clicking calls
-               *  handleToggleTheme("dark"), which sets theme to "dark",
-               *  persists to localStorage, and adds the .dark class.] */}
-              <button
-                type="button"
-                onClick={() => handleToggleTheme("dark")}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-semibold ${
-                  theme === "dark"
-                    ? "border-[#C59B27] bg-[#C59B27]/15 text-[#C59B27]"
-                    : "border-slate-200 dark:border-slate-700"
-                }`}
-              >
-                <Moon className="w-4 h-4" />
-                Dark Mode
-              </button>
-            </div>
+      {/* TAB 3: SETTINGS */}
+      {activeTab === 'settings' && (
+        <form onSubmit={handleSaveSettings} className="max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-3.5 text-xs">
+          <h2 className="text-sm font-bold">Account Settings</h2>
+          <div>
+            <label className="block font-semibold mb-1">Display Name</label>
+            <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full px-3 py-2 rounded-lg border bg-white dark:bg-slate-950" />
           </div>
-
-          <form
-            onSubmit={handleUpdateCredentials}
-            className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-4"
-          >
-            <h2 className="font-bold text-base text-slate-900 dark:text-slate-100">
-              Account Credentials
-            </h2>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                Email Address
-              </label>
-              {/* [UI ELEMENT: UPDATE EMAIL INPUT — typing updates newEmail state
-               *  via setNewEmail. Submitted to supabase.auth.updateUser() on
-               *  Update Credentials if different from the current email.] */}
-              <input
-                type="email"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                New Password
-              </label>
-              {/* [UI ELEMENT: UPDATE PASSWORD INPUT — typing updates newPassword
-               *  state via setNewPassword. Submitted to supabase.auth.updateUser()
-               *  on Update Credentials if non-empty.] */}
-              <input
-                type="password"
-                minLength={6}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Leave blank to keep current password"
-                className="w-full px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm"
-              />
-            </div>
-            {settingsMsg && (
-              <p className="text-xs text-[#0F4C25] dark:text-emerald-400">
-                {settingsMsg}
-              </p>
-            )}
-            {/* [UI ELEMENT: UPDATE CREDENTIALS BUTTON — clicking submits the
-             *  credentials form via handleUpdateCredentials, which calls
-             *  supabase.auth.updateUser() with the new email and/or password.] */}
-            <button
-              type="submit"
-              className="px-4 py-2 rounded-lg bg-[#0F4C25] hover:bg-[#0b3a1c] text-white text-sm font-semibold"
-            >
-              Update Credentials
-            </button>
-          </form>
-        </div>
+          <div>
+            <label className="block font-semibold mb-1">Year & Section</label>
+            <input type="text" value={section} onChange={(e) => setSection(e.target.value)} className="w-full px-3 py-2 rounded-lg border bg-white dark:bg-slate-950" />
+          </div>
+          <button type="submit" className="px-4 py-2 rounded-lg bg-[#0F4C25] text-white font-semibold">Save Changes</button>
+        </form>
       )}
     </div>
   );
 }
 
 export default function ProfilePage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="p-8 text-center text-sm text-slate-500">
-          Loading profile hub...
-        </div>
-      }
-    >
-      <ProfileHubContent />
-    </Suspense>
-  );
+  return <Suspense fallback={<p className="text-xs">Loading...</p>}><ProfileContent /></Suspense>;
 }

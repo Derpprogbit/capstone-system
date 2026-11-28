@@ -1,114 +1,90 @@
-/**
- * FILE: src/app/api/posts/route.js
- * ROUTE: GET /api/posts?subject=<name>&authorId=<uuid>  |  POST /api/posts
- * PURPOSE: REST API for fetching peer posts joined with author profiles (GET)
- *          and creating new threads or team recruitment posts (POST).
- * DATA FLOW:
- *   • GET: Reads optional subject and authorId query params. Queries public.posts
- *     joined with public.profiles (as author), ordered newest first. Filters by
- *     subject and/or authorId when provided. Returns { posts: [...] }.
- *   • POST: Reads JSON body { author_id, subject, post_type, title, content,
- *     looking_for }. Validates required fields, normalizes looking_for into an
- *     array, inserts into public.posts, returns the created post with joined
- *     author profile.
- * USED BY / CALLED BY: Home Feed (src/app/page.js), Profile Dashboard
- *                      (src/app/profile/page.js) via fetch GET and fetch POST.
- * TROUBLESHOOT: Verify Supabase tables 'posts' and 'profiles' exist and RLS is
- *               disabled for initial capstone testing.
- */
+// FILE: src/app/api/posts/route.js
+// PURPOSE: Fetches threads, creates new posts, handles upvotes, team joins, and replies.
 
-import { NextResponse } from "next/server";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { NextResponse } from 'next/server';
+import { getAuthUser, supabase } from '@/lib/supabase';
 
-export async function GET(request) {
-  // [STEP 1 - FLOW (handler): GET /api/posts. Reads optional subject and
-  //  authorId query params, builds a Supabase query on public.posts joined with
-  //  public.profiles (as author), applies filters, orders newest first, and
-  //  returns { posts: [...] }.]
-  if (!isSupabaseConfigured) {
-    return NextResponse.json({ posts: [], warning: "Supabase not configured" });
-  }
+// GET: Load all threads with author info and nested replies
+export async function GET() {
+  const { data, error } = await supabase
+    .from('posts')
+    .select('*, author:profiles!author_id(*), comments(*, author:profiles!author_id(*))')
+    .order('pinned', { ascending: false })
+    .order('created_at', { ascending: false });
 
-  try {
-    const { searchParams } = new URL(request.url);
-    const subject = searchParams.get("subject");
-    const authorId = searchParams.get("authorId");
-
-    // [DATA CALL: supabase.from("posts").select("*, author:profiles(*)").order("created_at", { ascending: false })
-    //  — talks to public.posts joined with public.profiles (alias: author).
-    //  Expects an array of posts, each with nested author profile data.]
-    let query = supabase
-      .from("posts")
-      .select("*, author:profiles(*)")
-      .order("created_at", { ascending: false });
-
-    if (subject && subject !== "All") {
-      query = query.eq("subject", subject);
-    }
-    if (authorId) {
-      query = query.eq("author_id", authorId);
-    }
-
-    const { data, error } = await query;
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ posts: data || [] });
-  } catch (err) {
-    return NextResponse.json({ error: err.message || "Failed to fetch posts" }, { status: 500 });
-  }
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  return NextResponse.json({ posts: data || [] });
 }
 
+// POST: Create a new thread (verifies user token on server)
 export async function POST(request) {
-  // [STEP 2 - FLOW (handler): POST /api/posts. Reads JSON body, validates
-  //  required fields (author_id, subject, title, content), normalizes
-  //  looking_for into a trimmed array, inserts into public.posts with joined
-  //  author profile, returns { post: data } with status 201.]
-  if (!isSupabaseConfigured) {
-    return NextResponse.json({ error: "Supabase not configured" }, { status: 503 });
+  const { user, db } = await getAuthUser(request);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const body = await request.json();
+  const teamMax = Number(body.team_max || 0);
+
+  const { data, error } = await db
+    .from('posts')
+    .insert({
+      author_id: user.id,
+      subject: body.subject,
+      post_type: body.post_type,
+      title: body.title,
+      body: body.body,
+      code_snippet: body.code_snippet || '',
+      looking_for: body.looking_for || [],
+      team_max: teamMax,
+      team_members: teamMax > 0 ? [user.id] : [],
+    })
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  return NextResponse.json({ post: data });
+}
+
+// PATCH: Toggle upvote, join/leave team, add reply, or mark resolved
+export async function PATCH(request) {
+  const { user, db } = await getAuthUser(request);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { action, postId, commentBody, commentId } = await request.json();
+
+  if (action === 'reply') {
+    const { error } = await db.from('comments').insert({
+      post_id: postId,
+      author_id: user.id,
+      body: commentBody,
+    });
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ ok: true });
   }
 
-  try {
-    const body = await request.json();
-    const { author_id, subject, post_type, title, content, looking_for } = body;
-
-    if (!author_id || !subject || !title?.trim() || !content?.trim()) {
-      return NextResponse.json(
-        { error: "author_id, subject, title, and content are required." },
-        { status: 400 }
-      );
-    }
-
-    const cleanLookingFor = Array.isArray(looking_for)
-      ? looking_for.map((r) => r.trim()).filter(Boolean)
-      : [];
-
-    // [DATA CALL: supabase.from("posts").insert([{ author_id, subject,
-    //  post_type, title, content, looking_for }]).select("*, author:profiles(*)").single()
-    //  — talks to public.posts. Inserts a new post row and returns it with the
-    //  joined author profile. Expects a single post object.]
-    const { data, error } = await supabase
-      .from("posts")
-      .insert([
-        {
-          author_id,
-          subject,
-          post_type: post_type || "Team Recruitment",
-          title: title.trim(),
-          content: content.trim(),
-          looking_for: cleanLookingFor,
-        },
-      ])
-      .select("*, author:profiles(*)")
-      .single();
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ post: data }, { status: 201 });
-  } catch (err) {
-    return NextResponse.json({ error: err.message || "Failed to create post" }, { status: 500 });
+  if (action === 'solve') {
+    await db.from('comments').update({ is_solution: true }).eq('id', commentId);
+    await db.from('posts').update({ resolved: true }).eq('id', postId);
+    return NextResponse.json({ ok: true });
   }
+
+  const { data: post } = await db.from('posts').select('*').eq('id', postId).single();
+  if (!post) return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+
+  if (action === 'upvote') {
+    const list = post.upvotes || [];
+    const next = list.includes(user.id) ? list.filter((id) => id !== user.id) : [...list, user.id];
+    await db.from('posts').update({ upvotes: next }).eq('id', postId);
+  }
+
+  if (action === 'join_team') {
+    const members = post.team_members || [];
+    if (members.includes(user.id)) {
+      if (post.author_id === user.id) return NextResponse.json({ error: 'Lead cannot leave' }, { status: 400 });
+      await db.from('posts').update({ team_members: members.filter((id) => id !== user.id) }).eq('id', postId);
+    } else if (members.length < post.team_max) {
+      await db.from('posts').update({ team_members: [...members, user.id] }).eq('id', postId);
+    }
+  }
+
+  return NextResponse.json({ ok: true });
 }
