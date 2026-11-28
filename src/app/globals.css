@@ -1,48 +1,17 @@
-/**
- * FILE: src/app/globals.css
- * PURPOSE: Tailwind v4 configuration with @custom-variant dark, GNC institutional
- *          color tokens, and subtle cubic-bezier animations for drawers and dropdowns.
- * USED BY / CALLED BY: src/app/layout.js.
- * TROUBLESHOOT: If dark mode classes do not toggle, verify @custom-variant dark
- *               is present and .dark is toggled on document.documentElement.
- */
+/* FILE: src/app/globals.css */
+/* PURPOSE: Tailwind v4 setup, Dark Mode selector, and GNC institutional theme colors. */
 
 @import "tailwindcss";
-
 @custom-variant dark (&:where(.dark, .dark *));
 
-:root {
-  --gnc-green: #0f4c25;
-  --gnc-gold: #c59b27;
-  --gnc-crimson: #a31d1d;
+@theme {
+  --color-gnc-green: #0F4C25;
+  --color-gnc-green-hover: #0A361A;
+  --color-gnc-gold: #C59B27;
+  --color-gnc-crimson: #A31D1D;
 }
 
-@keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-    opacity: 0.6;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-@keyframes dropdownFade {
-  from {
-    transform: translateY(-6px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.animate-drawer {
-  animation: slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.animate-dropdown {
-  animation: dropdownFade 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
